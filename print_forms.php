@@ -57,13 +57,13 @@ if (!SUPER_USER) {
                      $_REQUEST['pid'], $userid);
 
     // execute the sql statement
-    $result = mysql_query( $sql );
+    $result = $conn->query( $sql );
     if ( ! $result )  // sql failed
     {
-        die( "Could not execute SQL: <pre>$sql</pre> <br />" .  mysql_error() );
+        die( "Could not execute SQL: <pre>$sql</pre> <br />" .  mysqli_error($conn) );
     }
 
-    if ( mysql_num_rows($result) == 0 )
+    if ( mysqli_num_rows($result) == 0 )
     {
         die( "You are not validated for project # $project_id ($app_title)<br />" );
     }
@@ -78,22 +78,22 @@ $sql = sprintf( "
                  $_REQUEST['pid']);
 
 // execute the sql statement
-$form_result = mysql_query( $sql );
+$form_result = $conn->query( $sql );
 if ( ! $form_result )  // sql failed
 {
-        die( "Could not execute SQL: <pre>$sql</pre> <br />" .  mysql_error() );
+        die( "Could not execute SQL: <pre>$sql</pre> <br />" .  mysqli_error($conn) );
 }
 
 $ddl = 'Select a data collection instrument to view <select id="record_select1" onchange="';
-while ($form_record = mysql_fetch_assoc( $form_result ))
+while ($form_record = $form_result->fetch_assoc( ))
 {
 //	$ddl .= 'if (document.) { } else { }; ';
 	$ddl .= "document.getElementById('".$form_record['form_name']."_form').style.display='none';";
 }
 $ddl .= "document.getElementById(document.getElementById('record_select1').value + '_form').style.display='';".'">';
-$form_result = mysql_query( $sql );
+$form_result = $conn->query( $sql );
 $ddl .= '<option value="">- select an instrument -</option>';
-while ($form_record = mysql_fetch_assoc( $form_result ))
+while ($form_record = $form_result->fetch_assoc( ))
 {
 	$ddl .= '<option value="'.$form_record['form_name'].'">'.$form_record['form_menu_description'].'</option>' ;
 }
@@ -102,7 +102,7 @@ $ddl .= '</select>';
 //print '<table border="0" cellpadding="2" cellspacing="0" class="ReportTableWithBorder">';
 // PRINT PAGE button
 print  "<div style='text-align:right;width:700px;max-width:700px;'>". $ddl ."
-             <button class='jqbuttonmed' onclick='printpage(this)'><img src='".APP_PATH_IMAGES."printer.png' class='imgfix'> Print page</button>
+             <button class='jqbuttonmed' onclick='window.print();'><img src='".APP_PATH_IMAGES."printer.png' class='imgfix'> Print page</button>
          </div>";
 
 $sql = sprintf( "
@@ -114,15 +114,15 @@ $sql = sprintf( "
                  $_REQUEST['pid']);
 
 // execute the sql statement
-$form_result = mysql_query( $sql );
+$form_result = $conn->query( $sql );
 if ( ! $form_result )  // sql failed
 {
-        die( "Could not execute SQL: <pre>$sql</pre> <br />" .  mysql_error() );
+        die( "Could not execute SQL: <pre>$sql</pre> <br />" .  mysqli_error($conn) );
 }
 
 //print '<table border="0" cellpadding="2" cellspacing="0" class="ReportTableWithBorder">';
 //print '<div style="max-width:700px;width:700px;"><table border="0" cellpadding="2" cellspacing="0" id="form_table" class="form_border">';
-while ($form_record = mysql_fetch_assoc( $form_result ))
+while ($form_record = $form_result->fetch_assoc( ))
 {
 ?>
     <div id="<?php echo $form_record['form_name'] ?>_form" style="max-width:700px;">
@@ -145,16 +145,16 @@ while ($form_record = mysql_fetch_assoc( $form_result ))
 
 
         // execute the sql statement
-        $fields_result = mysql_query( $sql );
+        $fields_result = $conn->query( $sql );
 
         if ( ! $fields_result )  // sql failed
         {
-                die( "Could not execute SQL: <pre>$sql</pre> <br />" .  mysql_error() );
+                die( "Could not execute SQL: <pre>$sql</pre> <br />" .  mysqli_error($conn) );
         }
 
         $variableHash = array();
 
-        while ($fields_record = mysql_fetch_assoc( $fields_result ))
+        while ($fields_record = $fields_result->fetch_assoc( ))
         {
                 $field_name = $fields_record['field_name'];
 		// Don't print calc fielss or form_complete fields
@@ -185,7 +185,7 @@ while ($form_record = mysql_fetch_assoc( $form_result ))
                 $print_type = "";
                 if ($fields_record['element_enum'] > "") {
                         if ( $fields_record['element_type'] == 'sql' ) {
-                                $print_type .= '<table border="0" cellpadding="2" cellspacing="0" class="ReportTableWithBorder"><tr><td>' . $fields_record['element_enum'] . '</td></tr></table>';
+//                                $print_type .= '<table border="0" cellpadding="2" cellspacing="0" class="ReportTableWithBorder"><tr><td>' . $fields_record['element_enum'] . '</td></tr></table>';
                         } else {
                                 foreach ($element_enums as &$this_element_enum) {
 					$pos = strpos($this_element_enum, ",");
@@ -195,13 +195,15 @@ while ($form_record = mysql_fetch_assoc( $form_result ))
                                                 	if ($fields_record['element_type'] == 'checkbox' ) {
 								$print_type .= '&nbsp; &nbsp; [ &nbsp; ] '.$label;
                                                		} else {
-								$print_type .= '&nbsp; &nbsp; O '.$label;
+								#$print_type .= '&nbsp; &nbsp; O '.$label;
+								$print_type .= '&nbsp; &nbsp; ( &nbsp; ) '.$label;
                                                 	}
 						} else {
                                                 	if ($fields_record['element_type'] == 'checkbox' ) {
 								$print_type .= '&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; [ &nbsp; ] '.$label;
                                                		} else {
-								$print_type .= '&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; O '.$label;
+								#$print_type .= '&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; O '.$label;
+								$print_type .= '&nbsp; &nbsp; &nbsp; &nbsp; ( &nbsp; ) '.$label;
                                                 	}
                                         		$print_type .= '<br />';
 						}
@@ -223,6 +225,15 @@ while ($form_record = mysql_fetch_assoc( $form_result ))
                 	}
 		    }
 		    $print_type .= '<br /><br /><hr><br /><hr><br /><hr>';
+		}
+		elseif ($fields_record['element_validation_type'] == 'date_mdy') {
+			$print_type .= '_____-_____-__________';
+		}
+		elseif ($fields_record['element_validation_type'] == 'date_dmy') {
+			$print_type .= '_____-_____-__________';
+		}
+		elseif ($fields_record['element_validation_type'] == 'date_ymd') {
+			$print_type .= '__________-_____-_____';
 		}
 		else {
 			$print_type .= '________________________';
@@ -248,6 +259,7 @@ while ($form_record = mysql_fetch_assoc( $form_result ))
 		} else {
                		print " &nbsp; " . $print_type . "<br />";
 		}
+                print "<br />";
         }
 	print "<br /><br /><br />";
     print "</div>";
