@@ -100,7 +100,8 @@ if ($user_dag > "") {
 }
 
 // Get a list of the forms for the project that the user has access to
-$sql = sprintf( "
+if (!SUPER_USER) {
+    $sql = sprintf( "
         SELECT m.field_order, m.form_menu_description, m.form_name
           FROM redcap_metadata m, redcap_user_rights u
          WHERE m.project_id =%d
@@ -112,6 +113,15 @@ $sql = sprintf( "
                 u.data_entry like concat('%s[', m.form_name, ',3]%s') )
          ORDER BY m.field_order",
                  $this_pid, $userid, '%', '%', '%', '%', '%', '%' );
+} else {
+    $sql = sprintf( "
+        SELECT m.field_order, m.form_menu_description, m.form_name
+          FROM redcap_metadata m
+         WHERE m.project_id =%d
+           AND m.form_menu_description > ''
+         ORDER BY m.field_order",
+                 $this_pid);
+}
 
 // execute the sql statement
 $form_result = $conn->query( $sql );
@@ -149,7 +159,8 @@ print  "<div style='text-align:right;width:700px;max-width:700px;'>". $ddl ."
          </div>";
 
 // Get a list of the forms in the project
-$sql = sprintf( "
+if (!SUPER_USER) {
+    $sql = sprintf( "
         SELECT m.field_order, m.form_menu_description, m.form_name
           FROM redcap_metadata m, redcap_user_rights u
          WHERE m.project_id =%d
@@ -161,6 +172,15 @@ $sql = sprintf( "
                 u.data_entry like concat('%s[', m.form_name, ',3]%s') )
          ORDER BY m.field_order",
                  $this_pid, $userid, '%', '%', '%', '%', '%', '%' );
+} else {
+    $sql = sprintf( "
+        SELECT m.field_order, m.form_menu_description, m.form_name
+          FROM redcap_metadata m
+         WHERE m.project_id =%d
+           AND m.form_menu_description > ''
+         ORDER BY m.field_order",
+                 $this_pid);
+}
 
 // execute the sql statement
 $form_result = $conn->query( $sql );
