@@ -2,6 +2,8 @@
 /**
  * PLUGIN NAME: print_forms.php
  * DESCRIPTION: This displays the forms for a project in a format that could be copied and pasted into Word
+ *              Required parameter: pid for project id
+ *              Optional parameter: lws=y for less white space (e.g. ?pid=1&lws=y)
  * VERSION:     1.0
  * AUTHOR:      Sue Lowry - University of Minnesota
  */
@@ -22,6 +24,7 @@ require_once APP_PATH_DOCROOT . 'ProjectGeneral/header.php';
 
 // Your HTML page content goes here
 ?>
+<!--
         <style type="text/css">
                 table {border-collapse:collapse;}
                 table.ReportTableWithBorder {
@@ -45,7 +48,10 @@ require_once APP_PATH_DOCROOT . 'ProjectGeneral/header.php';
                 td.DataA {background-color:##DDDDDD;}
                 td.DataB {background-color:##FFFFFF;}
         </style>
+--!>
 <?php
+if ($_REQUEST['lws'] == 'y') { $lws = true; $not_lws = false; } else { $lws = false; $not_lws = true; }
+
 // build the sql statement to find the data
 if (!SUPER_USER) {
     $sql = sprintf( "
@@ -187,11 +193,14 @@ while ($form_record = $form_result->fetch_assoc( ))
                         if ( $fields_record['element_type'] == 'sql' ) {
 //                                $print_type .= '<table border="0" cellpadding="2" cellspacing="0" class="ReportTableWithBorder"><tr><td>' . $fields_record['element_enum'] . '</td></tr></table>';
                         } else {
+				if ($fields_record['custom_alignment'] == "LH" and $not_lws) {
+                                	$print_type .= '<br />';
+                                }
                                 foreach ($element_enums as &$this_element_enum) {
 					$pos = strpos($this_element_enum, ",");
 					$val = substr($this_element_enum, 1, $pos - 1);
 					$label = substr($this_element_enum, $pos + 1);
-						if (substr($fields_record['custom_alignment'], -1) == "H") {
+						if (substr($fields_record['custom_alignment'], -1) == "H" or $lws) {
                                                 	if ($fields_record['element_type'] == 'checkbox' ) {
 								$print_type .= '&nbsp; &nbsp; [ &nbsp; ] '.$label;
                                                		} else {
@@ -208,9 +217,6 @@ while ($form_record = $form_result->fetch_assoc( ))
                                         		$print_type .= '<br />';
 						}
                                 }
-				if ($fields_record['custom_alignment'] == "LH") {
-                                	$print_type .= '<br />';
-                                }
                         }
                 }
 		elseif ($fields_record['element_type'] == 'descriptive') {
@@ -224,7 +230,11 @@ while ($form_record = $form_result->fetch_assoc( ))
                         	$print_type .= " (".$fields_record['element_note'].")";
                 	}
 		    }
-		    $print_type .= '<br /><br /><hr><br /><hr><br /><hr>';
+		    if ($not_lws) { 
+                        $print_type .= '<br /><br /><hr><br /><hr><br /><hr>'; 
+                    } else {
+			$print_type .= ' ______________________________________________________________________';
+                    }
 		}
 		elseif ($fields_record['element_validation_type'] == 'date_mdy') {
 			$print_type .= '_____-_____-__________';
@@ -250,18 +260,22 @@ while ($form_record = $form_result->fetch_assoc( ))
 
                 // Print the preceding header above the field, if there is one
                 if ( $this_element_preceding_header > "" ) {
-                        print '<br />'.str_replace('<hr>','<hr style="color:black;">',$fields_record['element_preceding_header']) . "<br />";
+			$hr = ( strpos(' '.$fields_record['element_preceding_header'], '<hr') );
+			if ($not_lws or $hr == false) { print '<br />'; }
+                        print str_replace('<hr>','<hr style="color:black;">',$fields_record['element_preceding_header']);
+                        if ($not_lws) { print '<br />'; }
                 }
                 // Print the information about the field
                	print $print_label;
-                if ($fields_record['element_enum'] > "" && substr($fields_record['custom_alignment'], -1) != "H") {
+                if ($fields_record['element_enum'] > "" && substr($fields_record['custom_alignment'], -1) != "H" && $not_lws) {
                		print "<br />" . $print_type;
 		} else {
                		print " &nbsp; " . $print_type . "<br />";
 		}
-                print "<br />";
+                if ($not_lws) { print "<br />"; }
         }
-	print "<br /><br /><br />";
+	print "<br />";
+	if ($not_lws) {print "<br /><br />"; }
     print "</div>";
 }
 
