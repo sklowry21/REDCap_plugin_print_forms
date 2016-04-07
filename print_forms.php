@@ -23,33 +23,6 @@ if (PROJECT_ID != 24) {
 require_once APP_PATH_DOCROOT . 'ProjectGeneral/header.php';
 
 // Your HTML page content goes here
-?>
-<!--
-        <style type="text/css">
-                table {border-collapse:collapse;}
-                table.ReportTableWithBorder {
-                  border-right:none;
-                  border-left:none;
-                  border-right:1pt solid black;
-                  border-bottom:1pt solid black;
-                  font-size:17px;
-                  font-size:13px;
-                  font-family:helvetica,arial,sans-serif;
-                }
-                .ReportTableWithBorder th,
-                .ReportTableWithBorder td {
-                  border-top: none;
-                  border-left: none;
-                  border-top: 1pt solid black;
-                  border-left: 1pt solid black;
-                  padding: 4px 5px;
-                  font-weight:normal;
-                }
-                td.DataA {background-color:##DDDDDD;}
-                td.DataB {background-color:##FFFFFF;}
-        </style>
---!>
-<?php
 if ($_REQUEST['lws'] == 'y') { $lws = true; $not_lws = false; } else { $lws = false; $not_lws = true; }
 
 // build the sql statement to find the data
@@ -75,64 +48,39 @@ if (!SUPER_USER) {
     }
 }
 
-$sql = sprintf( "
-        SELECT m.field_order, m.form_menu_description, m.form_name
-          FROM redcap_metadata m
-         WHERE m.project_id =%d
-           AND m.form_menu_description > ''
-         ORDER BY m.field_order",
-                 $_REQUEST['pid']);
-
-// execute the sql statement
-$form_result = $conn->query( $sql );
-if ( ! $form_result )  // sql failed
-{
-        die( "Could not execute SQL: <pre>$sql</pre> <br />" .  mysqli_error($conn) );
-}
-
 $ddl = 'Select a data collection instrument to view <select id="record_select1" onchange="';
-while ($form_record = $form_result->fetch_assoc( ))
+$ddl .= "var disp='none'; ";
+$ddl .= "if (document.getElementById('record_select1').value == '') {disp='';} ";
+foreach ($Proj->forms as $form_name=>$attr)
 {
-//	$ddl .= 'if (document.) { } else { }; ';
-	$ddl .= "document.getElementById('".$form_record['form_name']."_form').style.display='none';";
+    if ($user_rights['forms'][$form_name] > 0) 
+    { 
+	$ddl .= "document.getElementById('".$form_name."_form').style.display=disp;";
+    }
 }
 $ddl .= "document.getElementById(document.getElementById('record_select1').value + '_form').style.display='';".'">';
-$form_result = $conn->query( $sql );
 $ddl .= '<option value="">- select an instrument -</option>';
-while ($form_record = $form_result->fetch_assoc( ))
+foreach ($Proj->forms as $form_name=>$attr)
 {
-	$ddl .= '<option value="'.$form_record['form_name'].'">'.$form_record['form_menu_description'].'</option>' ;
+    if ($user_rights['forms'][$form_name] > 0)
+    {
+	$ddl .= '<option value="'.$form_name.'">'.$attr['menu'].'</option>' ;
+    }
 }
 $ddl .= '</select>';
 
-//print '<table border="0" cellpadding="2" cellspacing="0" class="ReportTableWithBorder">';
 // PRINT PAGE button
 print  "<div style='text-align:right;width:700px;max-width:700px;'>". $ddl ."
              <button class='jqbuttonmed' onclick='window.print();'><img src='".APP_PATH_IMAGES."printer.png' class='imgfix'> Print page</button>
          </div>";
 
-$sql = sprintf( "
-        SELECT m.field_order, m.form_menu_description, m.form_name
-          FROM redcap_metadata m
-         WHERE m.project_id =%d
-           AND m.form_menu_description > ''
-         ORDER BY m.field_order",
-                 $_REQUEST['pid']);
-
-// execute the sql statement
-$form_result = $conn->query( $sql );
-if ( ! $form_result )  // sql failed
+foreach ($Proj->forms as $form_name=>$attr)
 {
-        die( "Could not execute SQL: <pre>$sql</pre> <br />" .  mysqli_error($conn) );
-}
-
-//print '<table border="0" cellpadding="2" cellspacing="0" class="ReportTableWithBorder">';
-//print '<div style="max-width:700px;width:700px;"><table border="0" cellpadding="2" cellspacing="0" id="form_table" class="form_border">';
-while ($form_record = $form_result->fetch_assoc( ))
-{
+    if ($user_rights['forms'][$form_name] > 0)
+    {
 ?>
-    <div id="<?php echo $form_record['form_name'] ?>_form" style="max-width:700px;">
-	<h3 style="color:#800000;max-width:700px;border-bottom:2pt solid #800000;font-size:175%;"><?php echo $form_record['form_menu_description'] ?></h3>
+    <div id="<?php echo $form_name ?>_form" style="max-width:700px;">
+	<h3 style="color:#800000;max-width:700px;border-bottom:2pt solid #800000;font-size:175%;"><?php echo $attr['menu'] ?></h3>
 
 <?php
 
@@ -147,7 +95,7 @@ while ($form_record = $form_result->fetch_assoc( ))
                    AND   m.form_name = '%s'
                    /* AND   m.element_type <> 'descriptive' */
                    ORDER BY m.field_order",
-                      $_REQUEST['pid'], $form_record['form_name'] );
+                      $_REQUEST['pid'], $form_name );
 
 
         // execute the sql statement
@@ -163,9 +111,9 @@ while ($form_record = $form_result->fetch_assoc( ))
         while ($fields_record = $fields_result->fetch_assoc( ))
         {
                 $field_name = $fields_record['field_name'];
-		// Don't print calc fielss or form_complete fields
+		// Don't print calc fields or form_complete fields
 		if ( $fields_record['element_type'] == 'calc' ) { continue; }
-		if ( $field_name == $form_record['form_name'] . '_complete' ) { continue; }
+		if ( $field_name == $form_name . '_complete' ) { continue; }
 
                 if ( $fields_record['element_enum'] > "" ) {
                         $element_enums = explode('|',str_replace('\n','|',$fields_record['element_enum'])) ;
@@ -198,7 +146,7 @@ while ($form_record = $form_result->fetch_assoc( ))
                                 }
                                 foreach ($element_enums as &$this_element_enum) {
 					$pos = strpos($this_element_enum, ",");
-					$val = substr($this_element_enum, 1, $pos - 1);
+					$val = substr($this_element_enum, 0, $pos);
 					$label = substr($this_element_enum, $pos + 1);
 						if (substr($fields_record['custom_alignment'], -1) == "H" or $lws) {
                                                 	if ($fields_record['element_type'] == 'checkbox' ) {
@@ -224,7 +172,7 @@ while ($form_record = $form_result->fetch_assoc( ))
 		}
 		elseif ($fields_record['element_type'] == 'textarea') {
                     if ($fields_record['element_note'] > "") {
-                	if (substr($fields_record['element_note'], 1, 1) == "(") {
+                	if (substr($fields_record['element_note'], 0, 1) == "(") {
                         	$print_type .= " ".$fields_record['element_note'];
                 	} else {
                         	$print_type .= " (".$fields_record['element_note'].")";
@@ -250,11 +198,12 @@ while ($form_record = $form_result->fetch_assoc( ))
 		}
                 if ($fields_record['element_note'] > "") {
 		    if ($fields_record['element_type'] != 'textarea') {
-                	if (substr($fields_record['element_note'], 1, 1) == "(") {
+                	if (substr($fields_record['element_note'], 0, 1) == "(") {
                         	$print_type .= " ".$fields_record['element_note'];
                 	} else {
                         	$print_type .= " (".$fields_record['element_note'].")";
                 	}
+                        if ($not_lws) { $print_type .= "<br />"; }
                     }
                 }
 
@@ -277,6 +226,7 @@ while ($form_record = $form_result->fetch_assoc( ))
 	print "<br />";
 	if ($not_lws) {print "<br /><br />"; }
     print "</div>";
+    }
 }
 
 
