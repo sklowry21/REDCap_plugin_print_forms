@@ -23,6 +23,11 @@ if (PROJECT_ID != 24) {
 require_once APP_PATH_DOCROOT . 'ProjectGeneral/header.php';
 
 // Your HTML page content goes here
+if ( !$_REQUEST['pid'] )
+{
+    die( "Pid is required" );
+}
+
 if ($_REQUEST['lws'] == 'y') { $lws = true; $not_lws = false; } else { $lws = false; $not_lws = true; }
 
 // build the sql statement to find the data
