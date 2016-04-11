@@ -3,6 +3,7 @@
  * PLUGIN NAME: print_forms_with_data.php
  * DESCRIPTION: This displays the forms for a project in a format that could be copied and pasted into Word
  *              and includes the data from the record for which the ID is passed in
+ *              Required parameter: record for unique identifier for record to be displayed
  *              Required parameter: pid for project id
  *              Optional parameter: lws=y for less white space (e.g. ?pid=1&lws=y)
  * VERSION:     1.0
@@ -28,6 +29,11 @@ if ($_REQUEST['lws'] == 'y') { $lws = true; $not_lws = false; } else { $lws = fa
 
 $record = $_REQUEST['record'];
 $this_pid = $_REQUEST['pid'];
+
+if ( !$_REQUEST['record'] or !$_REQUEST['pid'] )
+{
+    die( "Both record and pid are required" );
+}
 
 $user_dag = "";
 // build the sql statement to find the data
@@ -112,13 +118,49 @@ foreach ($Proj->forms as $form_name=>$attr)
     {
 ?>
     <div id="<?php echo $form_name ?>_form" style="max-width:700px;">
-	<h3 style="color:#800000;max-width:700px;border-bottom:2pt solid #800000;font-size:175%;"><?php echo $attr['menu'] ?></h3>
 
 <?php
 
-        // Get information about the fields in the form, with the data values (for classic projects)
+    // Get information about the events in which there is data for the form for this record
+    $sql = sprintf( "
+            SELECT distinct em.event_id, em.descrip
+              FROM redcap_data d, redcap_metadata m, redcap_events_metadata em
+             WHERE d.project_id = %d
+               AND d.record = '%s'
+               AND m.project_id = d.project_id
+               AND m.form_name = '%s'
+               AND m.field_name = d.field_name
+               AND em.event_id = d.event_id
+               ORDER BY em.day_offset, em.descrip",
+                  $this_pid, $record, $form_name );
+
+    // execute the sql statement
+    $events_result = $conn->query( $sql );
+
+    if ( ! $events_result )  // sql failed
+    {
+            die( "Could not execute SQL: <pre>$sql</pre> <br />" .  mysqli_error($conn) );
+    }
+
+    $eventsHash = array();
+
+    // Loop through the events and store them
+    while ($events_record = $events_result->fetch_assoc( ))
+    {
+        $eventsHash[] = $events_record;
+    }
+    // Loop through the events and display them
+    foreach ($eventsHash as $thisEvent)
+    {
+	print '<h3 style="color:#800000;max-width:700px;border-bottom:2pt solid #800000;font-size:175%;">'.$attr['menu'].'</h3>';
+        if ($longitudinal)
+        {
+	    print '<p style="color:#800000;max-width:700px;border-bottom:1pt solid #800000;font-size:100%;">Event: '.$thisEvent['descrip'].'</p>';
+        }
+
+        // Get information about the fields in the form for the event, with the data values
         $sql = sprintf( "
-                SELECT m.branching_logic, m.custom_alignment, m.element_enum,
+                SELECT d.event_id, m.branching_logic, m.custom_alignment, m.element_enum,
                        m.element_label, m.element_note, m.element_preceding_header,
                        m.element_type, m.element_validation_max, m.element_validation_min,
                        m.element_validation_type, m.field_name, m.field_order,
@@ -129,12 +171,12 @@ foreach ($Proj->forms as $form_name=>$attr)
                     ON d.project_id = m.project_id
                    AND d.field_name = m.field_name
                    AND d.record = '%s'
+                   AND d.event_id = %d
                  WHERE m.project_id = %d
                    AND   m.form_name = '%s'
                    /* AND   m.element_type <> 'descriptive' */
                    ORDER BY m.field_order",
-                      $record, $this_pid, $form_name );
-
+                      $record, $thisEvent['event_id'], $this_pid, $form_name );
 
         // execute the sql statement
         $fields_result = $conn->query( $sql );
@@ -312,6 +354,7 @@ foreach ($Proj->forms as $form_name=>$attr)
         }
 	print "<br />";
 	if ($not_lws) {print "<br /><br />"; }
+    }
     print "</div>";
     }
 }
