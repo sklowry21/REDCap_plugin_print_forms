@@ -25,13 +25,15 @@ if (PROJECT_ID != 24) {
 require_once APP_PATH_DOCROOT . 'ProjectGeneral/header.php';
 
 // Your HTML page content goes here
+// Set the number at which a SQL field should no longer show all of the options
+$too_many = 21;
+// Set the less white space option variables
 if ($_REQUEST['lws'] == 'y') { $lws = true; $not_lws = false; } else { $lws = false; $not_lws = true; }
 
 $record = $_REQUEST['record'];
 $this_pid = $_REQUEST['pid'];
 
-if ( !$_REQUEST['record'] or !$_REQUEST['pid'] )
-{
+if ( !$_REQUEST['record'] or !$_REQUEST['pid'] ) {
     die( "Both record and pid are required" );
 }
 
@@ -48,13 +50,10 @@ if (!SUPER_USER) {
 
     // execute the sql statement
     $result = $conn->query( $sql );
-    if ( ! $result )  // sql failed
-    {
+    if ( ! $result ) {  // sql failed
         die( "Could not execute SQL: <pre>$sql</pre> <br />" .  mysqli_error($conn) );
     }
-
-    if ( mysqli_num_rows($result) == 0 )
-    {
+    if ( mysqli_num_rows($result) == 0 ) {
         die( "You are not validated for project # $project_id ($app_title)<br />" );
     }
     $user_record = $result->fetch_assoc( );
@@ -72,14 +71,12 @@ if ($user_dag > "") {
 	                 $this_pid, $record );
 
 	$dag_result = $conn->query( $sql );
-	if ( ! $dag_result ) // sql failed
-	{
+	if ( ! $dag_result ) { // sql failed
 	        die( "Could not execute SQL: <pre>$sql</pre> <br />" .  mysqli_error($conn) );
 	}
 	$dag_record = $dag_result->fetch_assoc( );
 	if ($dag_record['record_dag'] > "") { $record_dag = $dag_record['record_dag']; } else { $record_dag = ""; }
-	if ( $record_dag <> $user_dag )
-	{
+	if ( $record_dag <> $user_dag ) {
 	        die( "You do not have access to see record $record.<br />" );
 	}
 }
@@ -88,19 +85,17 @@ if ($user_dag > "") {
 $ddl = 'Select a data collection instrument to view <select id="record_select1" onchange="';
 $ddl .= "var disp='none'; ";
 $ddl .= "if (document.getElementById('record_select1').value == '') {disp='';} ";
-foreach ($Proj->forms as $form_name=>$attr)
-{
-    if ($user_rights['forms'][$form_name] > 0)
-    {
+// Set up the onchange for each form
+foreach ($Proj->forms as $form_name=>$attr) {
+    if ($user_rights['forms'][$form_name] > 0) {
 	$ddl .= "document.getElementById('".$form_name."_form').style.display=disp;";
     }
 }
 $ddl .= "document.getElementById(document.getElementById('record_select1').value + '_form').style.display='';".'">';
 $ddl .= '<option value="">- select an instrument -</option>';
-foreach ($Proj->forms as $form_name=>$attr)
-{
-    if ($user_rights['forms'][$form_name] > 0)
-    {
+// Set up the select option for each form
+foreach ($Proj->forms as $form_name=>$attr) {
+    if ($user_rights['forms'][$form_name] > 0) {
 	$ddl .= '<option value="'.$form_name.'">'.$attr['menu'].'</option>' ;
     }
 }
@@ -114,12 +109,9 @@ print  "<div style='text-align:right;width:700px;max-width:700px;'>". $ddl ."
 // Loop through all the forms
 foreach ($Proj->forms as $form_name=>$attr)
 {
-    if ($user_rights['forms'][$form_name] > 0)
-    {
-?>
-    <div id="<?php echo $form_name ?>_form" style="max-width:700px;">
-
-<?php
+  if ($user_rights['forms'][$form_name] > 0)
+  {
+    print '<div id="'.$form_name.'_form" style="max-width:700px;">';
 
     // Get information about the events in which there is data for the form for this record
     $sql = sprintf( "
@@ -134,27 +126,29 @@ foreach ($Proj->forms as $form_name=>$attr)
                ORDER BY em.day_offset, em.descrip",
                   $this_pid, $record, $form_name );
 
-    // execute the sql statement
     $events_result = $conn->query( $sql );
-
-    if ( ! $events_result )  // sql failed
-    {
+    if ( ! $events_result ) {  // sql failed
             die( "Could not execute SQL: <pre>$sql</pre> <br />" .  mysqli_error($conn) );
     }
 
-    $eventsHash = array();
-
     // Loop through the events and store them
-    while ($events_record = $events_result->fetch_assoc( ))
-    {
+    $eventsHash = array();
+    while ($events_record = $events_result->fetch_assoc( )) {
         $eventsHash[] = $events_record;
+    }
+    // If there is no data for this form, let them know that
+    if (count($eventsHash) == 0) {
+	print '<h3 style="color:#800000;max-width:700px;border-bottom:2pt solid #800000;font-size:175%;">'.$attr['menu'].'</h3>';
+        print 'There is no data for this record and form';
+        if ($longitudinal) {
+            print ' in any events';
+        }
     }
     // Loop through the events and display them
     foreach ($eventsHash as $thisEvent)
     {
 	print '<h3 style="color:#800000;max-width:700px;border-bottom:2pt solid #800000;font-size:175%;">'.$attr['menu'].'</h3>';
-        if ($longitudinal)
-        {
+        if ($longitudinal) {
 	    print '<p style="color:#800000;max-width:700px;border-bottom:1pt solid #800000;font-size:100%;">Event: '.$thisEvent['descrip'].'</p>';
         }
 
@@ -178,19 +172,14 @@ foreach ($Proj->forms as $form_name=>$attr)
                    ORDER BY m.field_order",
                       $record, $thisEvent['event_id'], $this_pid, $form_name );
 
-        // execute the sql statement
         $fields_result = $conn->query( $sql );
-
-        if ( ! $fields_result )  // sql failed
-        {
+        if ( ! $fields_result ) {
                 die( "Could not execute SQL: <pre>$sql</pre> <br />" .  mysqli_error($conn) );
         }
 
+        // Loop through the fields and store them
         $variableHash = array();
-
-        // Loop through the fields and display them
-        while ($fields_record = $fields_result->fetch_assoc( ))
-        {
+        while ($fields_record = $fields_result->fetch_assoc( )) {
 		$variableHash[] = $fields_record;
         }
         // Loop through the fields and display them
@@ -221,15 +210,43 @@ foreach ($Proj->forms as $form_name=>$attr)
 			$print_label = '<span style="color:red;font-size:10px;font-weight:normal;">*&nbsp;</span>' . $print_label;
                 }
 
-
                 $print_type = "";
                 if ($fields_record['element_enum'] > "" and  $fields_record['element_type'] != 'calc') {
+			if ($fields_record['custom_alignment'] == "LH" and $not_lws) {
+                            $print_type .= '<br />';
+                        }
                         if ( $fields_record['element_type'] == 'sql' ) {
-//                                $print_type .= '<table border="0" cellpadding="2" cellspacing="0" class="ReportTableWithBorder"><tr><td>' . $fields_record['element_enum'] . '</td></tr></table>';
-                        } else {
-				if ($fields_record['custom_alignment'] == "LH" and $not_lws) {
-                                	$print_type .= '<br />';
+                            $sql = $fields_record['element_enum'];
+                            // execute the sql statement
+                            $options_result = $conn->query( $sql );
+                            if ( ! $options_result ) { // sql failed
+                                die( "Could not execute SQL: <pre>$sql</pre> <br />" .  mysqli_error($conn) );
+                            }
+                            $options_count = mysqli_num_rows($options_result);
+                            // Loop through the fields and display them
+                            while ($options_record = $options_result->fetch_assoc( ))
+                            {
+                                $which = 0;
+                                $id = '';
+                                $label = '';
+                                foreach ($options_record as $key => $value) { 
+                                    $which += 1;
+                                    if ($which == 1) { $id = $value; }
+                                    if ($which == 2) { $label = $value; }
                                 }
+                                if ($label == '') { $label = $id; }
+			        if ($id == $field_value) { $x_or_space = "X"; } else { $x_or_space = " &nbsp; "; }
+                                # Since sql type fields can have a LONG list, we'll only print the selected option ...
+                                # ... unless there aren't too many options
+                                if ($id == $field_value or $options_count < $too_many) {
+				    if (substr($fields_record['custom_alignment'], -1) == "H" or $lws) {
+                                        $print_type .= "&nbsp; &nbsp; ($x_or_space) $label";
+                                    } else {
+                                        $print_type .= "&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; ($x_or_space) $label<br />";
+                                    }
+                                }
+                            }
+                        } else {
 				$all_vals = array();
 				$all_vals[1] = $field_value;
 				if ($fields_record['element_type'] == 'checkbox' and $record > "" and $fld_nbr < count($variableHash)) {
@@ -242,21 +259,21 @@ foreach ($Proj->forms as $form_name=>$attr)
 					$pos = strpos($this_element_enum, ",");
 					$val = substr($this_element_enum, 0, $pos);
 					$label = substr($this_element_enum, $pos + 1);
-					if ($record > "" and array_search($val, $all_vals) > 0 ) { $x_or_space = "X"; } else { $x_or_space = "&nbsp;"; }
-						if (substr($fields_record['custom_alignment'], -1) == "H" or $lws) {
-                                                	if ($fields_record['element_type'] == 'checkbox' ) {
-								$print_type .= '&nbsp; &nbsp; [ '.$x_or_space.' ] '.$label;
-                                               		} else {
-								$print_type .= '&nbsp; &nbsp; ( '.$x_or_space.' ) '.$label;
-                                                	}
-						} else {
-                                                	if ($fields_record['element_type'] == 'checkbox' ) {
-								$print_type .= '&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; [ '.$x_or_space.' ] '.$label;
-                                               		} else {
-								$print_type .= '&nbsp; &nbsp; &nbsp; &nbsp; ( '.$x_or_space.' ) '.$label;
-                                                	}
-                                        		$print_type .= '<br />';
-						}
+					if ($record > "" and array_search($val, $all_vals) > 0 ) { $x_or_space = "X"; } else { $x_or_space = " &nbsp; "; }
+					if (substr($fields_record['custom_alignment'], -1) == "H" or $lws) {
+                                            if ($fields_record['element_type'] == 'checkbox' ) {
+						$print_type .= '&nbsp; &nbsp; ['.$x_or_space.'] '.$label;
+                                            } else {
+						$print_type .= '&nbsp; &nbsp; ('.$x_or_space.') '.$label;
+                                            }
+					} else {
+                                            if ($fields_record['element_type'] == 'checkbox' ) {
+						$print_type .= '&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; ['.$x_or_space.'] '.$label;
+                                            } else {
+						$print_type .= '&nbsp; &nbsp; &nbsp; &nbsp; ('.$x_or_space.') '.$label;
+                                            }
+                                            $print_type .= '<br />';
+					}
                                 }
                         }
                 }
@@ -356,7 +373,7 @@ foreach ($Proj->forms as $form_name=>$attr)
 	if ($not_lws) {print "<br /><br />"; }
     }
     print "</div>";
-    }
+  }
 }
 
 
