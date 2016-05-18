@@ -7,4 +7,4 @@ The print_forms_with_data.php plugin will display a copy of all of the forms tha
 
 In both print_forms.php and in print_forms_with_data.php, you can select a single form from a drop down list to have only that form displayed.
 
-In both plugins, you can optionally pass include the parameter "lws=y" in the URL to have it display less whitespace for a more compact form.
+In both plugins, you can optionally include the parameter "lws=y" in the URL to have it display less whitespace for a more compact form.
