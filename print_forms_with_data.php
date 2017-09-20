@@ -88,10 +88,10 @@ $ddl .= "if (document.getElementById('record_select1').value == '') {disp='';} "
 // Set up the onchange for each form
 foreach ($Proj->forms as $form_name=>$attr) {
     if ($user_rights['forms'][$form_name] > 0) {
-	$ddl .= "document.getElementById('".$form_name."_form').style.display=disp;";
+	$ddl .= "document.getElementById('".$form_name."_form').style.display=disp; ";
     }
 }
-$ddl .= "document.getElementById(document.getElementById('record_select1').value + '_form').style.display='';".'">';
+$ddl .= "document.getElementById(document.getElementById('record_select1').value + '_form').style.display=''; ".'">';
 $ddl .= '<option value="">- select an instrument -</option>';
 // Set up the select option for each form
 foreach ($Proj->forms as $form_name=>$attr) {
@@ -101,10 +101,39 @@ foreach ($Proj->forms as $form_name=>$attr) {
 }
 $ddl .= '</select>';
 
+#print "<pre>"; print_r($Proj->events); print "</pre>";
+
+// Build the ddl field with the list of events
+$ddl2 = 'Select an event to view <select id="event_select1" onchange="';
+$ddl2 .= "var disp='none'; ";
+$ddl2 .= "if (document.getElementById('event_select1').value == '') {disp='';} ";
+// Set up the onchange for each event
+foreach ($Proj->events as $this_arm=>$arm_attr) {
+    #print "Arm name: ".$arm_attr['name']."<br/>";
+    foreach ($arm_attr[events] as $this_event=>$event_attr) {
+        #print "Event ID: ".$this_event.", name: ".$event_attr['descrip']."<br/>";
+        $ddl2 .= "x = document.getElementsByClassName('event_".$this_event."'); var i; for (i=0; i < x.length; i++) { x[i].style.display=disp; } ";
+    }
+    $ddl2 .= "x = document.getElementsByClassName('event_none'); var i; for (i=0; i < x.length; i++) { x[i].style.display=disp; } ";
+}
+$ddl2 .= "x = document.getElementsByClassName('event_' + document.getElementById('event_select1').value); var i; for (i=0; i < x.length; i++) { x[i].style.display='';}".'">';
+$ddl2 .= '<option value="">- select an event -</option>';
+// Set up the select option for each event
+foreach ($Proj->events as $this_arm=>$arm_attr) {
+    foreach ($arm_attr[events] as $this_event=>$event_attr) {
+	$ddl2 .= '<option value="'.$this_event.'">'.$arm_attr['name']." ".$event_attr['descrip'].'</option>' ;
+    }
+}
+$ddl2 .= '</select>';
+
+print '<span style="color:#800000;font-size:175%;">'.RCView::escape($table_pk_label).RCView::SP.RCView::b(RCView::escape($_GET['id'])).": $record</span><br/>";
 // PRINT PAGE button
-print  "<div style='text-align:right;width:700px;max-width:700px;'>". $ddl ."
-             <button class='jqbuttonmed' onclick='window.print();'><img src='".APP_PATH_IMAGES."printer.png' class='imgfix'> Print page</button>
-         </div>";
+print  "<div style='text-align:right;width:700px;max-width:700px;'><table><tr><td>". $ddl ."</td>
+             <td>&nbsp; &nbsp; <button class='jqbuttonmed' onclick='window.print();'><img src='".APP_PATH_IMAGES."printer.png' class='imgfix'> Print page</button></td></tr>";
+if ($longitudinal) {
+    print "             <tr><td>". $ddl2 ."</td><td></td></tr>";
+}
+print "</table></div>";
 
 // Loop through all the forms
 foreach ($Proj->forms as $form_name=>$attr)
@@ -114,17 +143,34 @@ foreach ($Proj->forms as $form_name=>$attr)
     print '<div id="'.$form_name.'_form" style="max-width:700px;">';
 
     // Get information about the events in which there is data for the form for this record
-    $sql = sprintf( "
-            SELECT distinct em.event_id, em.descrip
-              FROM redcap_data d, redcap_metadata m, redcap_events_metadata em
-             WHERE d.project_id = %d
-               AND d.record = '%s'
-               AND m.project_id = d.project_id
-               AND m.form_name = '%s'
-               AND m.field_name = d.field_name
-               AND em.event_id = d.event_id
-               ORDER BY em.day_offset, em.descrip",
-                  $this_pid, $record, $form_name );
+    if ($longitudinal) {
+        $sql = sprintf( "
+                SELECT distinct em.event_id, em.descrip
+                  FROM redcap_data d, redcap_metadata m, redcap_events_metadata em, redcap_events_forms ef 
+                 WHERE d.project_id = %d
+                   AND d.record = '%s'
+                   AND m.project_id = d.project_id
+                   AND m.form_name = '%s'
+                   AND m.field_name = d.field_name
+                   AND em.event_id = d.event_id
+                   AND ef.event_id = d.event_id
+                   AND ef.form_name = m.form_name
+                   ORDER BY em.day_offset, em.descrip",
+                      $this_pid, $record, $form_name );
+    } else {
+        $sql = sprintf( "
+                SELECT distinct em.event_id, em.descrip
+                  FROM redcap_data d, redcap_metadata m, redcap_events_metadata em
+                 WHERE d.project_id = %d
+                   AND d.record = '%s'
+                   AND m.project_id = d.project_id
+                   AND m.form_name = '%s'
+                   AND m.field_name = d.field_name
+                   AND em.event_id = d.event_id
+                   ORDER BY em.day_offset, em.descrip",
+                      $this_pid, $record, $form_name );
+    }
+#print "sql: $sql<br/>";
 
     $events_result = $conn->query( $sql );
     if ( ! $events_result ) {  // sql failed
@@ -138,15 +184,22 @@ foreach ($Proj->forms as $form_name=>$attr)
     }
     // If there is no data for this form, let them know that
     if (count($eventsHash) == 0) {
+        if ($longitudinal) {
+            print '<div class="event_none">';
+        }
 	print '<h3 style="color:#800000;max-width:700px;border-bottom:2pt solid #800000;font-size:175%;">'.$attr['menu'].'</h3>';
         print 'There is no data for this record and form';
         if ($longitudinal) {
             print ' in any events';
+            print '</div>';
         }
     }
     // Loop through the events and display them
     foreach ($eventsHash as $thisEvent)
     {
+        if ($longitudinal) {
+            print '<div class="event_'.$thisEvent['event_id'].'">';
+        }
 	print '<h3 style="color:#800000;max-width:700px;border-bottom:2pt solid #800000;font-size:175%;">'.$attr['menu'].'</h3>';
         if ($longitudinal) {
 	    print '<p style="color:#800000;max-width:700px;border-bottom:1pt solid #800000;font-size:100%;">Event: '.$thisEvent['descrip'].'</p>';
@@ -371,6 +424,7 @@ foreach ($Proj->forms as $form_name=>$attr)
         }
 	print "<br />";
 	if ($not_lws) {print "<br /><br />"; }
+        if ($longitudinal) { print "</div>"; }
     }
     print "</div>";
   }
